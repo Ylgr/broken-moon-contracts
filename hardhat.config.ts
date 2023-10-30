@@ -43,6 +43,10 @@ const config: HardhatUserConfig = {
     cache: "./cache_hardhat",
   },
   networks: {
+    hardhat: {
+      allowUnlimitedContractSize: true,
+      gasPrice: 5000000000, // 5 gwei
+    },
     testnet: {
       url: "https://data-seed-prebsc-1-s1.binance.org:8545",
       chainId: 97,
