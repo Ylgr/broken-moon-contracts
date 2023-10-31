@@ -87,17 +87,17 @@ describe("smartWallet", () => {
     //     expect(await smartWallet.isAdmin(user1.address as any)).equal(true);
     // });
 
-    it("should transfer bm token to user 2", async () => {
+    it("should transfer bm token to user 2 (when have ETH on smart wallet)", async () => {
 
         const smartWalletAddress = await bicAccountFactory.getFunction("getAddress")(user1.address as any, "0x" as any);
         const smartWalletAddress2 = await bicAccountFactory.getFunction("getAddress")(user2.address as any, "0x" as any);
         await bmToken.mint(smartWalletAddress as any, ethers.parseEther("1000") as any);
         expect(await bmToken.balanceOf(smartWalletAddress as any)).equal(ethers.parseEther("1000"));
 
-        // await admin.sendTransaction({
-        //     to: user1.address,
-        //     value: ethers.parseEther("1.0")
-        // });
+        await admin.sendTransaction({
+            to: smartWalletAddress,
+            value: ethers.parseEther("1.0")
+        });
         const createAccountRes = await bicAccountFactory.createAccount(user1.address as any, "0x" as any);
         // const createAccountRes = await bicAccountFactory.createAccount.staticCall(user1.address as any, "0x" as any);
         const smartWallet: BicAccount = await ethers.getContractAt("BicAccount", smartWalletAddress);
