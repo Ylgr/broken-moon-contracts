@@ -2,7 +2,7 @@ import {ethers} from "hardhat";
 import {BicAccount, BicAccountFactory, BMToken, EntryPoint} from "../typechain-types";
 import {expect} from "chai";
 import {Wallet} from "ethers";
-import {randomHash} from "hardhat/internal/hardhat-network/provider/utils/random";
+import BicAccountBuild from "../artifacts/src/smart-wallet/BicAccount.sol/BicAccount.json";
 
 describe("smartWallet", () => {
     const {provider} = ethers;
@@ -14,6 +14,8 @@ describe("smartWallet", () => {
     let entryPoint: EntryPoint;
     let bmToken: BMToken;
     let bmTokenAddress: string;
+    let bicAccount: BicAccount;
+    let bicAccountAddress: string;
 
     beforeEach(async () => {
         [admin] = await ethers.getSigners();
@@ -26,6 +28,11 @@ describe("smartWallet", () => {
         bicAccountFactory = await BicAccountFactory.deploy(entryPointAddress);
         await bicAccountFactory.waitForDeployment();
         bicAccountFactoryAddress = await bicAccountFactory.getAddress();
+
+        const BicAccount = await ethers.getContractFactory("BicAccount");
+        bicAccount = await BicAccount.deploy(entryPointAddress, bicAccountFactoryAddress);
+        await bicAccount.waitForDeployment();
+        bicAccountAddress = await bicAccount.getAddress();
 
         const BMToken = await ethers.getContractFactory("BMToken");
         bmToken = await BMToken.deploy();
@@ -81,12 +88,19 @@ describe("smartWallet", () => {
     // });
 
     it("should transfer bm token to user 2", async () => {
-        const smartWalletAddress = await bicAccountFactory.getAddress(user1.address as any, 0 as any);
+
+        const smartWalletAddress = await bicAccountFactory.getFunction("getAddress")(user1.address as any, "0x" as any);
+        const smartWalletAddress2 = await bicAccountFactory.getFunction("getAddress")(user2.address as any, "0x" as any);
         await bmToken.mint(smartWalletAddress as any, ethers.parseEther("1000") as any);
         expect(await bmToken.balanceOf(smartWalletAddress as any)).equal(ethers.parseEther("1000"));
+
+        // await admin.sendTransaction({
+        //     to: user1.address,
+        //     value: ethers.parseEther("1.0")
+        // });
         const createAccountRes = await bicAccountFactory.createAccount(user1.address as any, "0x" as any);
+        // const createAccountRes = await bicAccountFactory.createAccount.staticCall(user1.address as any, "0x" as any);
         const smartWallet: BicAccount = await ethers.getContractAt("BicAccount", smartWalletAddress);
-        console.log('smartWallet: ', smartWallet)
             expect(await smartWallet.isAdmin(admin.address)).equal(true);
             expect(await smartWallet.isAdmin(user1.address as any)).equal(true);
         const initCallData = bmToken.interface.encodeFunctionData("transfer", [user2.address as any, ethers.parseEther("100") as any]);

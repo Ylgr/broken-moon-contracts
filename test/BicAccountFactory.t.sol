@@ -96,6 +96,21 @@ contract BicAccountFactoryTest is Test {
         return _setupUserOp(_signerPKey, _initCode, callDataForEntrypoint, sender);
     }
 
+    function test_ifWalletGenerateSameWithWalletGetAddress() public {
+        address accountAddressUser1 = accountFactory.createAccount(user1, "");
+        address accountAddressUser1Get = accountFactory.getAddress(user1, "");
+        console.log("accountAddressUser1", accountAddressUser1);
+        console.log("accountAddressUser1Get", accountAddressUser1Get);
+        assertEq(accountAddressUser1, accountAddressUser1Get);
+
+        address accountAddressUser2 = accountFactory.createAccount(user2, "");
+        address accountAddressUser2Get = accountFactory.getAddress(user2, "");
+        console.log("accountAddressUser2", accountAddressUser2);
+        console.log("accountAddressUser2Get", accountAddressUser2Get);
+        assertEq(accountAddressUser2, accountAddressUser2Get);
+    }
+
+
     function test_createAccount() public {
         address accountAddress = accountFactory.createAccount(msg.sender, "");
         BicAccount account = BicAccount(payable(accountAddress));
