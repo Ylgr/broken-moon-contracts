@@ -88,8 +88,10 @@ describe("smartWallet", () => {
     // });
 
     it("should transfer bm token to user 2 (when have ETH on smart wallet)", async () => {
-
+        console.log('admin.address: ', admin.address)
+        console.log('user1.address: ', user1.address)
         const smartWalletAddress = await bicAccountFactory.getFunction("getAddress")(user1.address as any, "0x" as any);
+        console.log('smartWalletAddress: ', smartWalletAddress)
         const smartWalletAddress2 = await bicAccountFactory.getFunction("getAddress")(user2.address as any, "0x" as any);
         await bmToken.mint(smartWalletAddress as any, ethers.parseEther("1000") as any);
         expect(await bmToken.balanceOf(smartWalletAddress as any)).equal(ethers.parseEther("1000"));
@@ -123,8 +125,9 @@ describe("smartWallet", () => {
             signature: "0x"
         }
         const opHash = await entryPoint.getUserOpHash(op as any);
-        const signature = await user1.signMessage(opHash);
-        op.signature = signature;
+        console.log('user1: ', user1.address)
+        const signature = await user1.signMessage(ethers.getBytes(opHash));
+        op.signature = ethers.solidityPacked(["bytes"], [signature]);
         console.log('op: ', op)
 
         // const validateUserOp = await smartWallet.validateUserOp(op as any, opHash as any, 168000000 as any);
@@ -136,3 +139,5 @@ describe("smartWallet", () => {
         expect(await bmToken.balanceOf(user2.address as any)).equal(ethers.parseEther("100"));
     });
 });
+// 0xaf3a4e3b3bfa7d75013b7526bec489b9832d2eb3061dcbd5467a4f3620d493185fe1809b7a7ff5a7d1b053e2a0bb4347fa284283e23621407ec64cc0c71a83681b
+// 0xf261dd9c7d3dcbabdc9b3b2c6a4991724dbc524f92adfe8e1ee76597d0e0f344649c5a089c6cb0bc80af740e87304eeffad59fd5114cde9cda2c9a5abd74e2cd1b
