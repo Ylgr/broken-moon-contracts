@@ -18,6 +18,7 @@ import "./SenderCreator.sol";
 import "./Helpers.sol";
 import "./NonceManager.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "hardhat/console.sol";
 
 contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard {
     using UserOperationLib for UserOperation;

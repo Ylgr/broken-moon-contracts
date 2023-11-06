@@ -1,5 +1,5 @@
 import {ethers} from "hardhat";
-import {BicAccount, BicAccountFactory, BMToken, DepositPaymaster, EntryPoint, MockedOracle} from "../typechain-types";
+import {BicAccount, BicAccountFactory, BMToken, DepositPaymaster, EntryPoint, MockOracle} from "../typechain-types";
 import {expect} from "chai";
 import {Wallet} from "ethers";
 import BicAccountBuild from "../artifacts/src/smart-wallet/BicAccount.sol/BicAccount.json";
@@ -17,8 +17,9 @@ describe("smartWallet", () => {
     let bmTokenAddress: string;
     let bicAccount: BicAccount;
     let bicAccountAddress: string;
-
+    let beneficiary: string;
     beforeEach(async () => {
+        beneficiary = ethers.Wallet.createRandom().address;
         [admin] = await ethers.getSigners();
         const EntryPoint = await ethers.getContractFactory("EntryPoint");
         entryPoint = await EntryPoint.deploy();
@@ -41,6 +42,56 @@ describe("smartWallet", () => {
         bmTokenAddress = await bmToken.getAddress();
     });
 
+
+
+    async function createOp(smartWalletAddress: string, initCode: string,  initCallData: string, paymasterAndData: string = "0x", chainNonce: BigInt = 0n): Promise<any> {
+        const smartWallet: BicAccount = await ethers.getContractAt("BicAccount", smartWalletAddress);
+        const target = bmTokenAddress;
+        const value = ethers.ZeroHash;
+        const callDataForEntrypoint = smartWallet.interface.encodeFunctionData("execute", [target, value, initCallData]);
+        const nonce = await entryPoint.getNonce(smartWalletAddress as any, 0 as any);
+        const op = {
+            sender: smartWalletAddress,
+            nonce: nonce + chainNonce,
+            initCode: initCode,
+            callData: callDataForEntrypoint,
+            callGasLimit: 500_000,
+            verificationGasLimit: 500_000,
+            preVerificationGas: 500_000,
+            // maxFeePerGas: 0,
+            maxFeePerGas: paymasterAndData === '0x'? 0 : 112,
+            // maxPriorityFeePerGas: 0,
+            maxPriorityFeePerGas: 82,
+            paymasterAndData: paymasterAndData,
+            signature: "0x"
+        }
+        const opHash = await entryPoint.getUserOpHash(op as any);
+        const signature = await user1.signMessage(ethers.getBytes(opHash));
+        op.signature = ethers.solidityPacked(["bytes"], [signature]);
+        return op;
+    }
+
+    async function createAndApproveBmToken(smartWalletAddress: string, approveAddress: string = ethers.ZeroAddress): Promise<any> {
+        const smartWallet: BicAccount = await ethers.getContractAt("BicAccount", smartWalletAddress);
+
+        const initCallData = bicAccountFactory.interface.encodeFunctionData("createAccount", [user1.address as any, ethers.ZeroHash]);
+        const target = bicAccountFactoryAddress;
+        const value = ethers.ZeroHash;
+
+        const callDataForEntrypoint = smartWallet.interface.encodeFunctionData("execute", [target, value, ethers.ZeroHash]);
+        const initCode = ethers.solidityPacked(
+            ["bytes", "bytes"],
+            [ethers.solidityPacked(["bytes"], [bicAccountFactoryAddress]), initCallData]
+        );
+        const createWalletOp = await createOp(smartWalletAddress, initCode, callDataForEntrypoint);
+
+        const approveOp = await createOp(smartWalletAddress, "0x", bmToken.interface.encodeFunctionData("approve", [approveAddress, ethers.MaxUint256]), '0x', 1n);
+
+        const collect10TokenOp = await createOp(smartWalletAddress, "0x", bmToken.interface.encodeFunctionData("transfer", [approveAddress, ethers.parseEther("10")]), '0x', 2n);
+
+        await entryPoint.handleOps([createWalletOp, approveOp, collect10TokenOp] as any, beneficiary as any);
+    }
+
     // it("should create smart wallet", async () => {
     //     const smartWalletAddress = await bicAccountFactory.getFunction("getAddress")(user1.address as any, "0x" as any);
     //     expect(user1.address).equal("0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf");
@@ -60,33 +111,16 @@ describe("smartWallet", () => {
     //         [ethers.solidityPacked(["bytes"], [bicAccountFactoryAddress]), initCallData]
     //     );
     //     console.log(3)
-    //     const nonce = await entryPoint.getNonce(smartWalletAddress as any, 0 as any);
-    //     console.log('nonce: ', nonce)
+    //     const createWalletOp = await createOp(smartWalletAddress, initCode, callDataForEntrypoint, ethers.ZeroHash);
     //
-    //     const op = {
-    //         sender: smartWalletAddress,
-    //         nonce: nonce,
-    //         initCode: initCode,
-    //         callData: callDataForEntrypoint,
-    //         callGasLimit: 500_000,
-    //         verificationGasLimit: 500_000,
-    //         preVerificationGas: 500_000,
-    //         maxFeePerGas: 0,
-    //         maxPriorityFeePerGas: 0,
-    //         paymasterAndData: ethers.ZeroHash,
-    //         signature: ethers.ZeroHash
-    //     }
-    //     console.log('op: ', op)
-    //     const opHash = await entryPoint.getUserOpHash(op as any);
-    //         const signature = await user1.signMessage(ethers.getBytes(opHash));
-    //         op.signature = ethers.solidityPacked(["bytes"], [signature]);
-    //     console.log(4)
-    //     await entryPoint.handleOps([op] as any, admin.address);
+    //     const approveOp = await createOp(smartWalletAddress, "0x", bmToken.interface.encodeFunctionData("approve", [smartWalletAddress, ethers.parseEther("1000")]), ethers.ZeroHash, 1n);
+    //
+    //     await entryPoint.handleOps([createWalletOp, approveOp] as any, admin.address);
     //
     //     expect(await smartWallet.isAdmin(admin.address)).equal(true);
     //     expect(await smartWallet.isAdmin(user1.address as any)).equal(true);
     // });
-    //
+
     // it("should transfer bm token to user 2 (when have ETH on smart wallet)", async () => {
     //     console.log('admin.address: ', admin.address)
     //     console.log('user1.address: ', user1.address)
@@ -135,9 +169,9 @@ describe("smartWallet", () => {
     //     expect(await bmToken.balanceOf(user2.address as any)).equal(ethers.parseEther("100"));
     // });
 
-    it("should transfer bm token to user 2 (using paymaster)", async () => {
-        const MockedOracle = await ethers.getContractFactory("MockedOracle");
-        const mockOracle = await MockedOracle.deploy();
+    it("should transfer bm token to user 2 (using deposit paymaster)", async () => {
+        const MockOracle = await ethers.getContractFactory("MockOracle");
+        const mockOracle = await MockOracle.deploy();
         await mockOracle.waitForDeployment();
         const mockOracleAddress = await mockOracle.getAddress();
 
@@ -150,8 +184,6 @@ describe("smartWallet", () => {
         await depositPaymaster.deposit({value: ethers.parseEther("1.0")} as any);
         expect(await entryPoint.balanceOf(depositPaymasterAddress as any)).equal(ethers.parseEther("1.0"));
 
-        console.log('admin.address: ', admin.address)
-        console.log('user1.address: ', user1.address)
         const smartWalletAddress = await bicAccountFactory.getFunction("getAddress")(user1.address as any, "0x" as any);
         console.log('smartWalletAddress: ', smartWalletAddress)
         const smartWalletAddress2 = await bicAccountFactory.getFunction("getAddress")(user2.address as any, "0x" as any);
@@ -160,41 +192,95 @@ describe("smartWallet", () => {
 
         await bmToken.approve(depositPaymasterAddress as any, ethers.parseEther("1.0") as any);
         await depositPaymaster.addDepositFor(bmTokenAddress as any, smartWalletAddress as any, ethers.parseEther("1.0") as any);
+        console.log('beneficiary eth before: ', await provider.getBalance(beneficiary))
+        await createAndApproveBmToken(smartWalletAddress, depositPaymasterAddress);
 
-        const createAccountRes = await bicAccountFactory.createAccount(user1.address as any, "0x" as any);
-        // const createAccountRes = await bicAccountFactory.createAccount.staticCall(user1.address as any, "0x" as any);
-        const smartWallet: BicAccount = await ethers.getContractAt("BicAccount", smartWalletAddress);
-            expect(await smartWallet.isAdmin(admin.address)).equal(true);
-            expect(await smartWallet.isAdmin(user1.address as any)).equal(true);
         const initCallData = bmToken.interface.encodeFunctionData("transfer", [user2.address as any, ethers.parseEther("100") as any]);
-        const target = bmTokenAddress;
-        const value = ethers.ZeroHash;
-        const callDataForEntrypoint = smartWallet.interface.encodeFunctionData("execute", [target, value, initCallData]);
-        const initCode = "0x";
-        const nonce = await entryPoint.getNonce(smartWalletAddress as any, 0 as any);
-        const op = {
-            sender: smartWalletAddress,
-            nonce: nonce,
-            initCode: initCode,
-            callData: callDataForEntrypoint,
-            callGasLimit: 500_000,
-            verificationGasLimit: 500_000,
-            preVerificationGas: 500_000,
-            maxFeePerGas: 112,
-            maxPriorityFeePerGas: 82,
-            paymasterAndData: depositPaymasterAddress + bmTokenAddress.slice(2),
-            signature: "0x"
-        }
-        const opHash = await entryPoint.getUserOpHash(op as any);
-        console.log('user1: ', user1.address)
-        const signature = await user1.signMessage(ethers.getBytes(opHash));
-        op.signature = ethers.solidityPacked(["bytes"], [signature]);
-        console.log('op: ', op)
 
-        console.log(4)
-        await entryPoint.connect(admin).handleOps([op] as any, admin.address);
+        const transferOp = await createOp(smartWalletAddress, "0x", initCallData, depositPaymasterAddress + bmTokenAddress.slice(2));
+
+        const ethAdminBalanceBefore = await provider.getBalance(admin.address);
+        console.log('ethAdminBalanceBefore: ', ethAdminBalanceBefore.toString())
+        console.log('ethDepositPaymasterBalanceBefore: ', await entryPoint.getDepositInfo(depositPaymasterAddress as any))
+
+        await entryPoint.connect(admin).handleOps([transferOp] as any, beneficiary as any);
+
+        const ethAdminBalanceAfter = await provider.getBalance(admin.address);
+        console.log('ethAdminBalanceAfter: ', ethAdminBalanceAfter.toString())
+        console.log('ethDepositPaymasterBalanceAfter: ', await entryPoint.getDepositInfo(depositPaymasterAddress as any))
+
+        console.log('beneficiary eth after: ', await provider.getBalance(beneficiary))
         expect(await bmToken.balanceOf(user2.address as any)).equal(ethers.parseEther("100"));
+        expect(await bmToken.balanceOf(smartWalletAddress as any)).equal(ethers.parseEther("1000")- ethers.parseEther("10") - ethers.parseEther("100") - 7028n);
     });
+
+
+    // it("should transfer bm token to user 2 (using token paymaster)", async () => {
+    //     const MockOracle = await ethers.getContractFactory("MockOracle");
+    //     const mockOracle = await MockOracle.deploy();
+    //     await mockOracle.waitForDeployment();
+    //     const mockOracleAddress = await mockOracle.getAddress();
+    //
+    //     const MockSwapRouter = await ethers.getContractFactory("MockSwapRouter");
+    //     const mockSwapRouter = await MockSwapRouter.deploy();
+    //     await mockSwapRouter.waitForDeployment();
+    //     const mockSwapRouterAddress = await mockSwapRouter.getAddress();
+    //
+    //     const TokenPaymaster = await ethers.getContractFactory("TokenPaymaster");
+    //     const tokenPaymaster = await TokenPaymaster.deploy(entryPointAddress, mockSwapRouterAddress);
+    //
+    //     await depositPaymaster.addToken(bmTokenAddress as any, mockOracleAddress as any);
+    //     // await entryPoint.depositTo(depositPaymasterAddress as any, {value: ethers.parseEther("1.0")} as any);
+    //     await depositPaymaster.deposit({value: ethers.parseEther("1.0")} as any);
+    //     expect(await entryPoint.balanceOf(depositPaymasterAddress as any)).equal(ethers.parseEther("1.0"));
+    //
+    //     console.log('admin.address: ', admin.address)
+    //     console.log('user1.address: ', user1.address)
+    //     const smartWalletAddress = await bicAccountFactory.getFunction("getAddress")(user1.address as any, "0x" as any);
+    //     console.log('smartWalletAddress: ', smartWalletAddress)
+    //     const smartWalletAddress2 = await bicAccountFactory.getFunction("getAddress")(user2.address as any, "0x" as any);
+    //     await bmToken.mint(smartWalletAddress as any, ethers.parseEther("1000") as any);
+    //     expect(await bmToken.balanceOf(smartWalletAddress as any)).equal(ethers.parseEther("1000"));
+    //
+    //     await bmToken.approve(depositPaymasterAddress as any, ethers.parseEther("1.0") as any);
+    //     await depositPaymaster.addDepositFor(bmTokenAddress as any, smartWalletAddress as any, ethers.parseEther("1.0") as any);
+    //
+    //     const createAccountRes = await bicAccountFactory.createAccount(user1.address as any, "0x" as any);
+    //     // const createAccountRes = await bicAccountFactory.createAccount.staticCall(user1.address as any, "0x" as any);
+    //     const smartWallet: BicAccount = await ethers.getContractAt("BicAccount", smartWalletAddress);
+    //         expect(await smartWallet.isAdmin(admin.address)).equal(true);
+    //         expect(await smartWallet.isAdmin(user1.address as any)).equal(true);
+    //     const initCallData = bmToken.interface.encodeFunctionData("transfer", [user2.address as any, ethers.parseEther("100") as any]);
+    //     const target = bmTokenAddress;
+    //     const value = ethers.ZeroHash;
+    //     const callDataForEntrypoint = smartWallet.interface.encodeFunctionData("execute", [target, value, initCallData]);
+    //     const initCode = "0x";
+    //     const nonce = await entryPoint.getNonce(smartWalletAddress as any, 0 as any);
+    //     const op = {
+    //         sender: smartWalletAddress,
+    //         nonce: nonce,
+    //         initCode: initCode,
+    //         callData: callDataForEntrypoint,
+    //         callGasLimit: 500_000,
+    //         verificationGasLimit: 500_000,
+    //         preVerificationGas: 500_000,
+    //         maxFeePerGas: 112,
+    //         maxPriorityFeePerGas: 82,
+    //         paymasterAndData: depositPaymasterAddress + bmTokenAddress.slice(2),
+    //         signature: "0x"
+    //     }
+    //     const opHash = await entryPoint.getUserOpHash(op as any);
+    //     console.log('user1: ', user1.address)
+    //     const signature = await user1.signMessage(ethers.getBytes(opHash));
+    //     op.signature = ethers.solidityPacked(["bytes"], [signature]);
+    //     console.log('op: ', op)
+    //
+    //     console.log(4)
+    //     await entryPoint.connect(admin).handleOps([op] as any, admin.address);
+    //     expect(await bmToken.balanceOf(user2.address as any)).equal(ethers.parseEther("100"));
+    // });
+
+
 });
 // 0xaf3a4e3b3bfa7d75013b7526bec489b9832d2eb3061dcbd5467a4f3620d493185fe1809b7a7ff5a7d1b053e2a0bb4347fa284283e23621407ec64cc0c71a83681b
 // 0xf261dd9c7d3dcbabdc9b3b2c6a4991724dbc524f92adfe8e1ee76597d0e0f344649c5a089c6cb0bc80af740e87304eeffad59fd5114cde9cda2c9a5abd74e2cd1b

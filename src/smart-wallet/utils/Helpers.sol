@@ -53,6 +53,23 @@ function _intersectTimeRange(uint256 validationData, uint256 paymasterValidation
 }
 
 /**
+ * Helper to pack the return value for validateUserOp, when not using an aggregator.
+ * @param sigFailed  - True for signature failure, false for success.
+ * @param validUntil - Last timestamp this UserOperation is valid (or zero for infinite).
+ * @param validAfter - First timestamp this UserOperation is valid.
+ */
+    function _packValidationData(
+        bool sigFailed,
+        uint48 validUntil,
+        uint48 validAfter
+    ) pure returns (uint256) {
+        return
+            (sigFailed ? 1 : 0) |
+            (uint256(validUntil) << 160) |
+            (uint256(validAfter) << (160 + 48));
+    }
+
+/**
  * keccak function over calldata.
  * @dev copy calldata into memory, do keccak and drop allocated memory. Strangely, this is more efficient than letting solidity do it.
  */

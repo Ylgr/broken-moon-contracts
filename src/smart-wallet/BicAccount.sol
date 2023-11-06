@@ -21,7 +21,7 @@ import "./eip/ERC1271.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "./BicAccountFactory.sol";
-
+import "hardhat/console.sol";
 //   $$\     $$\       $$\                 $$\                         $$\
 //   $$ |    $$ |      \__|                $$ |                        $$ |
 // $$$$$$\   $$$$$$$\  $$\  $$$$$$\   $$$$$$$ |$$\  $$\  $$\  $$$$$$\  $$$$$$$\
@@ -104,6 +104,7 @@ contract BicAccount is
 
     /// @notice Returns whether a signer is authorized to perform transactions using the wallet.
     function isValidSigner(address _signer, UserOperation calldata _userOp) public view virtual returns (bool) {
+        console.log("_signer", _signer);
         // First, check if the signer is an admin.
         if (_accountPermissionsStorage().isAdmin[_signer]) {
             return true;

@@ -152,21 +152,16 @@ contract DepositPaymaster is BasePaymaster {
      * this time in *postOpReverted* mode.
      * In this mode, we use the deposit to pay (which we validated to be large enough)
      */
-    function _postOp(PostOpMode mode, bytes calldata context, uint256 actualGasCost) internal override {
-
+    function _postOp(PostOpMode, bytes calldata context, uint256 actualGasCost) internal override {
+        console.log("DepositPaymaster: _postOp");
         (address account, IERC20 token, uint256 gasPricePostOp, uint256 maxTokenCost, uint256 maxCost) = abi.decode(context, (address, IERC20, uint256, uint256, uint256));
         //use same conversion rate as used for validation.
+        console.log("maxCost", maxCost);
         uint256 actualTokenCost = (actualGasCost + COST_OF_POST * gasPricePostOp) * maxTokenCost / maxCost;
+        console.log("actualTokenCost", actualTokenCost);
         // attempt to pay with tokens:
-        if(mode == PostOpMode.opSucceeded) {
-            // transferFrom will revert if the sender didn't approve the paymaster
-//            token.safeTransferFrom(account, address(this), actualTokenCost);
-            balances[token][account] -= actualTokenCost;
-        }
-        if (mode == PostOpMode.postOpReverted) {
-            token.safeTransferFrom(account, address(this), actualTokenCost);
-            balances[token][owner()] += actualTokenCost;
-        }
-
+//        SafeERC20.safeTransferFrom(token, account, address(this), actualTokenCost);
+        token.safeTransferFrom(account, address(this), actualTokenCost);
+        balances[token][owner()] += actualTokenCost;
     }
 }
