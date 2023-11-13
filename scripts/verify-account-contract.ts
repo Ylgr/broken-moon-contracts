@@ -1,7 +1,7 @@
 import {ethers, run} from "hardhat";
 
 async function main() {
-    const accountAddress = "0xeb7144040f78f6dae6751f824fb33c60dbc02340";
+    const accountAddress = "0xA3834Fd8854BF49B0B20289cD4765b4aE1d891ae";
     try {
         console.log(`Verify BicAccount on ${accountAddress}`);
         await run(`verify:verify`, {
