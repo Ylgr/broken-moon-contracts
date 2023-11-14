@@ -239,7 +239,7 @@ describe("smartWallet", () => {
         expect(await bmToken.balanceOf(smartWalletAddress as any)).equal(ethers.parseEther("1000"));
 
         await bmToken.approve(depositPaymasterAddress as any, ethers.parseEther("1.0") as any);
-        await depositPaymaster.addDepositFor(bmTokenAddress as any, smartWalletAddress as any, ethers.parseEther("1.0") as any);
+        // await depositPaymaster.addDepositFor(bmTokenAddress as any, smartWalletAddress as any, ethers.parseEther("1.0") as any);
         console.log('beneficiary eth before: ', await provider.getBalance(beneficiary))
 
         const smartWallet: BicAccount = await ethers.getContractAt("BicAccount", smartWalletAddress);
