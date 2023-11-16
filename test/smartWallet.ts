@@ -104,14 +104,13 @@ describe("smartWallet", () => {
         const value = ethers.ZeroHash;
         console.log(1)
 
-        const callDataForEntrypoint = smartWallet.interface.encodeFunctionData("execute", [target, value, ethers.ZeroHash]);
         console.log(2)
         const initCode = ethers.solidityPacked(
             ["bytes", "bytes"],
             [ethers.solidityPacked(["bytes"], [bicAccountFactoryAddress]), initCallData]
         );
         console.log(3)
-        const createWalletOp = await createOp(smartWalletAddress, initCode, callDataForEntrypoint, "0x");
+        const createWalletOp = await createOp(smartWalletAddress, initCode, '0x', "0x");
 
         const approveOp = await createOp(smartWalletAddress, "0x", bmToken.interface.encodeFunctionData("approve", [admin.address as any, ethers.parseEther("1000")]), '0x', 1n);
 

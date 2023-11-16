@@ -19,7 +19,6 @@ import "./eip/ERC1271.sol";
 
 // Utils
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "./BicAccountFactory.sol";
 //   $$\     $$\       $$\                 $$\                         $$\
 //   $$ |    $$ |      \__|                $$ |                        $$ |
@@ -41,7 +40,6 @@ contract BicAccount is
     ERC1155Holder
 {
     using ECDSA for bytes32;
-    using MessageHashUtils for bytes32;
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /*///////////////////////////////////////////////////////////////
@@ -84,7 +82,7 @@ contract BicAccount is
     //////////////////////////////////////////////////////////////*/
 
     /// @notice See {IERC165-supportsInterface}.
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC1155Holder) returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC1155Receiver) returns (bool) {
         return
             interfaceId == type(IERC1155Receiver).interfaceId ||
             interfaceId == type(IERC721Receiver).interfaceId ||

@@ -84,9 +84,9 @@ contract TokenPaymaster is BasePaymaster, UniswapHelper, OracleHelper {
     10 ** _token.decimals(),
     _uniswapHelperConfig
     )
-    Ownable(_owner)
     {
         setTokenPaymasterConfig(_tokenPaymasterConfig);
+        transferOwnership(_owner);
     }
 
     /// @notice Updates the configuration for the Token Paymaster.
