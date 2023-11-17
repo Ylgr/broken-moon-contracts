@@ -2,64 +2,55 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "./interface/IERC20Burnable.sol";
 
 contract Treasury is Ownable, ReentrancyGuard {
-    bytes32 public merkleRoot;
-    mapping(uint256 => uint256) private claimedBitMap;
-
-    event Claimed(uint256 index,  address token, address account, uint256 amount);
-
-    function submitMerkleRoot(bytes32 merkleRoot_) external onlyOwner {
-        require(merkleRoot_ != 0, "Treasury: Invalid merkle root");
-        require(merkleRoot_ != merkleRoot, "Treasury: Merkle root already submitted");
-
-        merkleRoot = merkleRoot_;
+    struct PrimeInfo {
+        IERC721 token;
+        uint256 tokenId;
     }
 
-    function isClaimed(uint256 index) public view returns (bool) {
-        uint256 claimedWordIndex = index / 256;
-        uint256 claimedBitIndex = index % 256;
-        uint256 claimedWord = claimedBitMap[claimedWordIndex];
-        uint256 mask = (1 << claimedBitIndex);
-        return claimedWord & mask == mask;
+    PrimeInfo[] public primes;
+
+    uint8 public burnPercentage;
+
+    function addPrime(IERC721 token, uint256 tokenId) external onlyOwner {
+        primes.push(PrimeInfo(token, tokenId));
     }
 
-    function _setClaimed(uint256 index) private {
-        uint256 claimedWordIndex = index / 256;
-        uint256 claimedBitIndex = index % 256;
-        claimedBitMap[claimedWordIndex] = claimedBitMap[claimedWordIndex] | (1 << claimedBitIndex);
-    }
-
-    function claim(
-        uint256 index,
-        address token,
-        address account,
-        uint256 amount,
-        bytes32[] calldata merkleProof
-    ) external nonReentrant {
-        require(!isClaimed(index), "Treasury: Drop already claimed.");
-
-        // Verify the merkle proof.
-        bytes32 node = keccak256(abi.encodePacked(index, token, account, amount));
-        require(MerkleProof.verify(merkleProof, merkleRoot, node), "Treasury: Invalid proof.");
-
-        // Mark it claimed and send the token.
-        _setClaimed(index);
-        if(account == address(0)) {
-            IERC20Burnable(token).burn(amount);
-        } else {
-            require(IERC20Burnable(token).transfer(account, amount), "Treasury: Transfer failed.");
+    function removePrime(uint256 index) external onlyOwner {
+        require(index < primes.length, "Treasury: index out of bounds");
+        for (uint256 i = index; i < primes.length - 1; i++) {
+            primes[i] = primes[i + 1];
         }
-
-        emit Claimed(index, token, account, amount);
+        primes.pop();
     }
 
-    function setApproveToken(address token, address spender, uint256 amount) external onlyOwner {
-        require(IERC20Burnable(token).approve(spender, amount), "Treasury: Approve failed.");
+    function setBurnPercentage(uint8 _burnPercentage) external onlyOwner {
+        require(_burnPercentage <= 100, "Treasury: burn percentage must be less than or equal to 100");
+        burnPercentage = _burnPercentage;
     }
 
+    function withdraw(address token, uint256 amount) external onlyOwner {
+        if (token == address(0)) {
+            payable(owner()).transfer(amount);
+        } else {
+            IERC20(token).transfer(owner(), amount);
+        }
+    }
 
+    function withdrawNFT(address token, uint256 tokenId) external onlyOwner {
+        IERC721(token).transferFrom(address(this), owner(), tokenId);
+    }
+
+    function execute(address token, uint256 tokenId) external nonReentrant {
+        uint256 burnAmount = IERC20Burnable(token).balanceOf(address(this)) * burnPercentage / 100;
+        IERC20Burnable(token).burn(burnAmount);
+        uint256 airDropAmount = IERC20Burnable(token).balanceOf(address(this))/primes.length;
+        for (uint256 i = 0; i < primes.length; i++) {
+            IERC20Burnable(token).transfer(primes[i].token.ownerOf(primes[i].tokenId), airDropAmount);
+        }
+    }
 }
