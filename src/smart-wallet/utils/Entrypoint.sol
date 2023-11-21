@@ -18,7 +18,6 @@ import "./SenderCreator.sol";
 import "./Helpers.sol";
 import "./NonceManager.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "hardhat/console.sol";
 
 contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard {
     using UserOperationLib for UserOperation;
@@ -355,7 +354,6 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
 
             requiredPrefund = requiredGas * mUserOp.maxFeePerGas;
         }
-        console.log("maxFeePerGas: %s", mUserOp.maxFeePerGas);
     }
 
     // create the sender's contract if needed.
@@ -446,9 +444,6 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
             if (paymaster == address(0)) {
                 uint256 bal = balanceOf(sender);
                 missingAccountFunds = bal > requiredPrefund ? 0 : requiredPrefund - bal;
-                console.log("bal: %s", bal);
-                console.log("requiredPrefund: %s", requiredPrefund);
-                console.log("missingAccountFunds: %s", missingAccountFunds);
             }
             try
                 IAccount(sender).validateUserOp{ gas: mUserOp.verificationGasLimit }(
@@ -464,7 +459,6 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
                 revert FailedOp(opIndex, "AA23 reverted (or OOG)");
             }
             if (paymaster == address(0)) {
-                console.log("paymaster is 0");
                 DepositInfo storage senderInfo = deposits[sender];
                 uint256 deposit = senderInfo.deposit;
                 if (requiredPrefund > deposit) {

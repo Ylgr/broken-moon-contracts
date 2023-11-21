@@ -6,6 +6,7 @@ import "../src/smart-wallet/BicAccountFactory.sol";
 import "../src/smart-wallet/utils/Entrypoint.sol";
 import "../src/test/BMToken.sol";
 import "forge-std/Test.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 contract BicAccountFactoryTest is Test {
     BicAccountFactory public accountFactory;
@@ -17,9 +18,7 @@ contract BicAccountFactoryTest is Test {
     address public randomExecuteer = address(0x3);
     function setUp() public {
         entrypoint = new EntryPoint();
-        console.log("1");
         accountFactory = new BicAccountFactory(entrypoint);
-        console.log("2");
     }
 
 
@@ -48,7 +47,7 @@ contract BicAccountFactoryTest is Test {
 
         // Sign UserOp
         bytes32 opHash = EntryPoint(entrypoint).getUserOpHash(op);
-        bytes32 msgHash = MessageHashUtils.toEthSignedMessageHash(opHash);
+        bytes32 msgHash = ECDSA.toEthSignedMessageHash(opHash);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(_signerPKey, msgHash);
         bytes memory userOpSignature = abi.encodePacked(r, s, v);

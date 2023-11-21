@@ -45,9 +45,12 @@ contract Treasury is Ownable, ReentrancyGuard {
         IERC721(token).transferFrom(address(this), owner(), tokenId);
     }
 
-    function execute(address token, uint256 tokenId) external nonReentrant {
+    function execute(address token) external nonReentrant {
         uint256 burnAmount = IERC20Burnable(token).balanceOf(address(this)) * burnPercentage / 100;
         IERC20Burnable(token).burn(burnAmount);
+        if(primes.length == 0) {
+            return;
+        }
         uint256 airDropAmount = IERC20Burnable(token).balanceOf(address(this))/primes.length;
         for (uint256 i = 0; i < primes.length; i++) {
             IERC20Burnable(token).transfer(primes[i].token.ownerOf(primes[i].tokenId), airDropAmount);

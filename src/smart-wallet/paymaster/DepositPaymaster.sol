@@ -8,7 +8,6 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "../utils/BasePaymaster.sol";
 import "../interface/IOracle.sol";
-import "hardhat/console.sol";
 /**
  * A token-based paymaster that accepts token deposits
  * The deposit is only a safeguard: the user pays with his token balance.
@@ -153,12 +152,9 @@ contract DepositPaymaster is BasePaymaster {
      * In this mode, we use the deposit to pay (which we validated to be large enough)
      */
     function _postOp(PostOpMode, bytes calldata context, uint256 actualGasCost) internal override {
-        console.log("DepositPaymaster: _postOp");
         (address account, IERC20 token, uint256 gasPricePostOp, uint256 maxTokenCost, uint256 maxCost) = abi.decode(context, (address, IERC20, uint256, uint256, uint256));
         //use same conversion rate as used for validation.
-        console.log("maxCost", maxCost);
         uint256 actualTokenCost = (actualGasCost + COST_OF_POST * gasPricePostOp) * maxTokenCost / maxCost;
-        console.log("actualTokenCost", actualTokenCost);
         // attempt to pay with tokens:
 //        SafeERC20.safeTransferFrom(token, account, address(this), actualTokenCost);
         token.safeTransferFrom(account, address(this), actualTokenCost);

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "hardhat/console.sol";
-contract BMToken is ERC20 {
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+contract BMToken is ERC20Burnable {
     constructor() ERC20("BMToken", "BM") {
         _mint(msg.sender, 1000000000000000000000000000);
     }
@@ -13,7 +12,6 @@ contract BMToken is ERC20 {
     }
 
     function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
-        console.log("BMToken: transferFrom");
         return super.transferFrom(sender, recipient, amount);
     }
 }
