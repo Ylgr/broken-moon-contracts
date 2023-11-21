@@ -12,12 +12,21 @@ contract Treasury is Ownable, ReentrancyGuard {
         uint256 tokenId;
     }
 
+    event PrimeAdded(IERC721 token, uint256 tokenId);
+
+    event PrimeRemoved(IERC721 token, uint256 tokenId);
+
+    event ExecuteTreasuryLogic(address token, uint256 burnAmount, uint256 airDropAmount);
+
+    event ReceiveAirDropPrime(address token, uint256 tokenId, address to, uint256 amount);
+
     PrimeInfo[] public primes;
 
     uint8 public burnPercentage;
 
     function addPrime(IERC721 token, uint256 tokenId) external onlyOwner {
         primes.push(PrimeInfo(token, tokenId));
+        emit PrimeAdded(token, tokenId);
     }
 
     function removePrime(uint256 index) external onlyOwner {
@@ -26,6 +35,7 @@ contract Treasury is Ownable, ReentrancyGuard {
             primes[i] = primes[i + 1];
         }
         primes.pop();
+emit PrimeRemoved(primes[index].token, primes[index].tokenId);
     }
 
     function setBurnPercentage(uint8 _burnPercentage) external onlyOwner {
@@ -54,6 +64,8 @@ contract Treasury is Ownable, ReentrancyGuard {
         uint256 airDropAmount = IERC20Burnable(token).balanceOf(address(this))/primes.length;
         for (uint256 i = 0; i < primes.length; i++) {
             IERC20Burnable(token).transfer(primes[i].token.ownerOf(primes[i].tokenId), airDropAmount);
+            emit ReceiveAirDropPrime(address(primes[i].token), primes[i].tokenId, primes[i].token.ownerOf(primes[i].tokenId), airDropAmount);
         }
+        emit ExecuteTreasuryLogic(token, burnAmount, airDropAmount);
     }
 }
