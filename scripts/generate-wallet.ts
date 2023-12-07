@@ -10,8 +10,7 @@ async function main() {
     const walletAddress = randomWallet.address;
     const encryptedWallet = await randomWallet.encrypt(password);
     const encryptedWalletJson = JSON.stringify({
-        name: password,
-        encryptedWallet: encryptedWallet
+        [password + '@gmail.com']: encryptedWallet
     });
     fs.writeFileSync('./accounts/' + password + '.json', encryptedWalletJson);
 }
