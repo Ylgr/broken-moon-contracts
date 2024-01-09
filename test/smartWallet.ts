@@ -1,8 +1,17 @@
 import {ethers} from "hardhat";
-import {BicAccount, BicAccountFactory, BMToken, DepositPaymaster, EntryPoint, MockOracle} from "../typechain-types";
+import {
+    BicAccount,
+    BicAccountFactory,
+    BMToken,
+    DepositPaymaster,
+    EntryPoint,
+    MockOracle,
+    TokenPaymaster
+} from "../typechain-types";
 import {expect} from "chai";
-import {Wallet} from "ethers";
+import {parseEther, Wallet} from "ethers";
 import BicAccountBuild from "../artifacts/src/smart-wallet/BicAccount.sol/BicAccount.json";
+import {OracleHelper, UniswapHelper} from "../typechain-types/src/smart-wallet/paymaster/TokenPaymaster";
 
 describe("smartWallet", () => {
     const {provider} = ethers;
@@ -42,7 +51,6 @@ describe("smartWallet", () => {
         await bmToken.waitForDeployment();
         bmTokenAddress = await bmToken.getAddress();
     });
-
 
 
     async function createOp(smartWalletAddress: string, initCode: string,  initCallData: string, paymasterAndData: string = "0x", chainNonce: BigInt = 0n, user: Wallet = user1): Promise<any> {
@@ -328,73 +336,100 @@ describe("smartWallet", () => {
 
     });
 
-    // it("should transfer bm token to user 2 (using token paymaster)", async () => {
-    //     const MockOracle = await ethers.getContractFactory("MockOracle");
-    //     const mockOracle = await MockOracle.deploy();
-    //     await mockOracle.waitForDeployment();
-    //     const mockOracleAddress = await mockOracle.getAddress();
-    //
-    //     const MockSwapRouter = await ethers.getContractFactory("MockSwapRouter");
-    //     const mockSwapRouter = await MockSwapRouter.deploy();
-    //     await mockSwapRouter.waitForDeployment();
-    //     const mockSwapRouterAddress = await mockSwapRouter.getAddress();
-    //
-    //     const WrapEth = await ethers.getContractFactory("WrapEth");
-    //     const wrapEth = await WrapEth.deploy();
-    //     await wrapEth.waitForDeployment();
-    //     const wrapEthAddress = await wrapEth.getAddress();
-    //
-    //     const TokenPaymaster = await ethers.getContractFactory("TokenPaymaster");
-    //     const tokenPaymaster = await TokenPaymaster.deploy(
-    //         bmTokenAddress,
-    //         entryPointAddress,
-    //         wrapEthAddress,
-    //         mockSwapRouterAddress,
-    //         {
-    //             priceMarkup: 0,
-    //             minEntryPointBalance: ethers.parseEther("0.1"),
-    //             refundPostopCost: ethers.parseEther("0.1"),
-    //             priceMaxAge: 1000,
-    //         },
-    //         {
-    //             tokenOracle: mockOracleAddress,
-    //         }
-    //     );
-    //     await tokenPaymaster.waitForDeployment();
-    //     const tokenPaymasterAddress = await tokenPaymaster.getAddress();
-    //
-    //     await tokenPaymaster.deposit({value: ethers.parseEther("1.0")} as any);
-    //     expect(await entryPoint.balanceOf(tokenPaymasterAddress as any)).equal(ethers.parseEther("1.0"));
-    //
-    //     const smartWalletAddress = await bicAccountFactory.getFunction("getAddress")(user1.address as any, "0x" as any);
-    //     console.log('smartWalletAddress: ', smartWalletAddress)
-    //     const smartWalletAddress2 = await bicAccountFactory.getFunction("getAddress")(user2.address as any, "0x" as any);
-    //     await bmToken.mint(smartWalletAddress as any, ethers.parseEther("1000") as any);
-    //     expect(await bmToken.balanceOf(smartWalletAddress as any)).equal(ethers.parseEther("1000"));
-    //
-    //     await bmToken.approve(depositPaymasterAddress as any, ethers.parseEther("1.0") as any);
-    //     await depositPaymaster.addDepositFor(bmTokenAddress as any, smartWalletAddress as any, ethers.parseEther("1.0") as any);
-    //     console.log('beneficiary eth before: ', await provider.getBalance(beneficiary))
-    //     await createAndApproveBmToken(smartWalletAddress, depositPaymasterAddress);
-    //
-    //     const initCallData = bmToken.interface.encodeFunctionData("transfer", [user2.address as any, ethers.parseEther("100") as any]);
-    //
-    //     const transferOp = await createOp(smartWalletAddress, "0x", initCallData, depositPaymasterAddress + bmTokenAddress.slice(2));
-    //
-    //     const ethAdminBalanceBefore = await provider.getBalance(admin.address);
-    //     console.log('ethAdminBalanceBefore: ', ethAdminBalanceBefore.toString())
-    //     console.log('ethDepositPaymasterBalanceBefore: ', await entryPoint.getDepositInfo(depositPaymasterAddress as any))
-    //
-    //     await entryPoint.connect(admin).handleOps([transferOp] as any, beneficiary as any);
-    //
-    //     const ethAdminBalanceAfter = await provider.getBalance(admin.address);
-    //     console.log('ethAdminBalanceAfter: ', ethAdminBalanceAfter.toString())
-    //     console.log('ethDepositPaymasterBalanceAfter: ', await entryPoint.getDepositInfo(depositPaymasterAddress as any))
-    //
-    //     console.log('beneficiary eth after: ', await provider.getBalance(beneficiary))
-    //     expect(await bmToken.balanceOf(user2.address as any)).equal(ethers.parseEther("100"));
-    //     expect(await bmToken.balanceOf(smartWalletAddress as any)).equal(ethers.parseEther("1000")- ethers.parseEther("10") - ethers.parseEther("100") - 7028n);
-    // });
+    it("should transfer bm token to user 2 (using token paymaster)", async () => {
+        const WrapEth = await ethers.getContractFactory("WrapEth");
+        const wrapEth = await WrapEth.deploy();
+        await wrapEth.waitForDeployment();
+        const wrapEthAddress = await wrapEth.getAddress();
+
+        const TestUniswap = await ethers.getContractFactory("TestUniswap");
+        const testUniswap = await TestUniswap.deploy(wrapEthAddress);
+        await testUniswap.waitForDeployment();
+        const testUniswapAddress = await testUniswap.getAddress();
+
+        const initialPriceToken = 100000000 // USD per TOK
+        const initialPriceEther = 500000000 // USD per ETH
+
+        const TestOracle2 = await ethers.getContractFactory("TestOracle2");
+        const nativeAssetOracle = await TestOracle2.deploy(initialPriceEther, 8);
+        await nativeAssetOracle.waitForDeployment();
+        const nativeAssetOracleAddress = await nativeAssetOracle.getAddress();
+
+        const tokenOracle = await TestOracle2.deploy(initialPriceToken, 8);
+        await tokenOracle.waitForDeployment();
+        const tokenOracleAddress = await tokenOracle.getAddress();
+
+        await wrapEth.deposit({ value: parseEther('1') } as any)
+        await wrapEth.transfer(testUniswapAddress as any, parseEther('1') as any)
+
+        const minEntryPointBalance = 1e17.toString()
+        const priceDenominator = ethers.parseUnits('1', 26)
+
+        const tokenPaymasterConfig: TokenPaymaster.TokenPaymasterConfigStruct = {
+            priceMaxAge: 86400,
+            refundPostopCost: 40000,
+            minEntryPointBalance,
+            priceMarkup: priceDenominator * 15n / 10n, // +50%
+        }
+
+
+        const oracleHelperConfig: OracleHelper.OracleHelperConfigStruct = {
+            cacheTimeToLive: 0,
+            nativeOracle: nativeAssetOracleAddress,
+            nativeOracleReverse: false,
+            priceUpdateThreshold: 200_000, // +20%
+            tokenOracle: tokenOracleAddress,
+            tokenOracleReverse: false,
+            tokenToNativeOracle: false
+        }
+
+        const uniswapHelperConfig: UniswapHelper.UniswapHelperConfigStruct = {
+            minSwapAmount: 1,
+            slippage: 5,
+            uniswapPoolFee: 3
+        }
+
+        const TokenPaymaster = await ethers.getContractFactory("TokenPaymaster");
+        const paymaster = await TokenPaymaster.deploy(
+            bmTokenAddress,
+            entryPointAddress,
+            wrapEthAddress,
+            testUniswapAddress,
+            tokenPaymasterConfig,
+            oracleHelperConfig,
+            uniswapHelperConfig,
+            admin.address
+        );
+        await paymaster.waitForDeployment();
+        const paymasterAddress = await paymaster.getAddress();
+
+        await bmToken.transfer(paymasterAddress as any, '100' as any)
+        await paymaster.updateCachedPrice(true as any)
+        await entryPoint.depositTo(paymasterAddress as any, { value: parseEther('1000') } as any)
+        await paymaster.addStake(1 as any, { value: parseEther('2') } as any)
+
+        const smartWalletAddress1 = await bicAccountFactory.getFunction("getAddress")(user1.address as any, "0x" as any);
+        await bmToken.mint(smartWalletAddress1 as any, ethers.parseEther("1000") as any);
+        expect(await bmToken.balanceOf(smartWalletAddress1 as any)).equal(ethers.parseEther("1000"));
+        await createAndApproveBmToken(smartWalletAddress1, paymasterAddress);
+
+        const initCallData = bmToken.interface.encodeFunctionData("transfer", [user2.address as any, ethers.parseEther("100") as any]);
+
+        const transferOp = await createOp(smartWalletAddress1, "0x", initCallData, paymasterAddress);
+
+        const ethAdminBalanceBefore = await provider.getBalance(admin.address);
+        console.log('ethAdminBalanceBefore: ', ethAdminBalanceBefore.toString())
+        console.log('ethDepositPaymasterBalanceBefore: ', await entryPoint.getDepositInfo(paymasterAddress as any))
+
+        await entryPoint.connect(admin).handleOps([transferOp] as any, beneficiary as any);
+
+        const ethAdminBalanceAfter = await provider.getBalance(admin.address);
+        console.log('ethAdminBalanceAfter: ', ethAdminBalanceAfter.toString())
+        console.log('ethDepositPaymasterBalanceAfter: ', await entryPoint.getDepositInfo(paymasterAddress as any))
+
+        console.log('beneficiary eth after: ', await provider.getBalance(beneficiary))
+        expect(await bmToken.balanceOf(user2.address as any)).equal(ethers.parseEther("100"));
+    });
 });
 // 0xaf3a4e3b3bfa7d75013b7526bec489b9832d2eb3061dcbd5467a4f3620d493185fe1809b7a7ff5a7d1b053e2a0bb4347fa284283e23621407ec64cc0c71a83681b
 // 0xf261dd9c7d3dcbabdc9b3b2c6a4991724dbc524f92adfe8e1ee76597d0e0f344649c5a089c6cb0bc80af740e87304eeffad59fd5114cde9cda2c9a5abd74e2cd1b
