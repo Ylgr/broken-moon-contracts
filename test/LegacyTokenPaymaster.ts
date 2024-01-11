@@ -125,6 +125,64 @@ describe("LegacyTokenPaymaster", () => {
 
         expect(await legacyTokenPaymaster.balanceOf(smartWalletAddress2 as any)).equal(ethers.parseEther('100'));
         console.log('balance after: ', (await legacyTokenPaymaster.balanceOf(smartWalletAddress1 as any)).toString());
+    });
 
+    it('should be able to use oracle for calculate transaction fees', async () => {
+        const smartWalletAddress1 = await bicAccountFactory.getFunction("getAddress")(user1.address as any, "0x" as any);
+        const smartWalletAddress2 = await bicAccountFactory.getFunction("getAddress")(user2.address as any, "0x" as any);
+        await legacyTokenPaymaster.mintTokens(smartWalletAddress1 as any, ethers.parseEther('1000') as any);
+
+        const initCallData = bicAccountFactory.interface.encodeFunctionData("createAccount", [user1.address as any, ethers.ZeroHash]);
+        const target = bicAccountFactoryAddress;
+        const value = ethers.ZeroHash;
+        const initCode = ethers.solidityPacked(
+            ["bytes", "bytes"],
+            [ethers.solidityPacked(["bytes"], [bicAccountFactoryAddress]), initCallData]
+        );
+        const createWalletOp = await createOp(smartWalletAddress1, target, initCode, '0x', legacyTokenPaymasterAddress, 0n, user1);
+
+        const transferOp = await createOp(
+            smartWalletAddress1,
+            legacyTokenPaymasterAddress,
+            '0x',
+            legacyTokenPaymaster.interface.encodeFunctionData("transfer", [beneficiary, ethers.parseEther("0")]),
+            legacyTokenPaymasterAddress,
+            1n,
+            user1
+        );
+
+        await entryPoint.handleOps([createWalletOp, transferOp] as any, admin.address);
+        const balanceLeft1 = await legacyTokenPaymaster.balanceOf(smartWalletAddress1 as any);
+
+        const MockOracle = await ethers.getContractFactory("MockOracle");
+        const mockOracle = await MockOracle.deploy();
+        await mockOracle.waitForDeployment();
+        const mockOracleAddress = await mockOracle.getAddress();
+        await legacyTokenPaymaster.setOracle(mockOracleAddress as any);
+        await legacyTokenPaymaster.mintTokens(smartWalletAddress2 as any, ethers.parseEther('1000') as any);
+
+        const initCallData2 = bicAccountFactory.interface.encodeFunctionData("createAccount", [user2.address as any, ethers.ZeroHash]);
+        const target2 = bicAccountFactoryAddress;
+        const value2 = ethers.ZeroHash;
+        const initCode2 = ethers.solidityPacked(
+            ["bytes", "bytes"],
+            [ethers.solidityPacked(["bytes"], [bicAccountFactoryAddress]), initCallData2]
+        );
+        const createWalletOp2 = await createOp(smartWalletAddress2, target2, initCode2, '0x', legacyTokenPaymasterAddress, 0n, user2);
+
+        const transferOp2 = await createOp(
+            smartWalletAddress2,
+            legacyTokenPaymasterAddress,
+            '0x',
+            legacyTokenPaymaster.interface.encodeFunctionData("transfer", [beneficiary, ethers.parseEther("0")]),
+            legacyTokenPaymasterAddress,
+            1n,
+            user2
+        );
+
+        await entryPoint.handleOps([createWalletOp2, transferOp2] as any, admin.address);
+        const balanceLeft2 = await legacyTokenPaymaster.balanceOf(smartWalletAddress2 as any);
+
+        expect((ethers.parseEther('1000') - balanceLeft1)/(ethers.parseEther('1000') - balanceLeft2)).equal(100);
     });
 });
