@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/IPeripheryPayments.sol";
-
+import "hardhat/console.sol";
 abstract contract UniswapHelper {
     event UniswapReverted(address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOutMin);
 
@@ -58,7 +58,10 @@ abstract contract UniswapHelper {
     function _maybeSwapTokenToWeth(IERC20 tokenIn, uint256 quote) internal returns (uint256) {
         uint256 tokenBalance = tokenIn.balanceOf(address(this));
         uint256 amountOutMin = addSlippage(tokenToWei(tokenBalance, quote), uniswapHelperConfig.slippage);
+        console.log("amountOutMin: %s", amountOutMin);
+        console.log("minSwapAmount: %s", uniswapHelperConfig.minSwapAmount);
         if (amountOutMin < uniswapHelperConfig.minSwapAmount) {
+            console.log("amountOutMin < uniswapHelperConfig.minSwapAmount");
             return 0;
         }
         // note: calling 'swapToToken' but destination token is Wrapped Ether
@@ -116,6 +119,9 @@ abstract contract UniswapHelper {
         uint256 amountOutMin,
         uint24 fee
     ) internal returns (uint256 amountOut) {
+        console.log("swapToToken: %s -> %s", tokenIn, tokenOut);
+        console.log("amountIn: %s", amountIn);
+        console.log("amountOutMin: %s", amountOutMin);
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams(
             tokenIn, //tokenIn
             tokenOut, //tokenOut
@@ -127,6 +133,7 @@ abstract contract UniswapHelper {
             0
         );
         try uniswap.exactInputSingle(params) returns (uint256 _amountOut) {
+            console.log("amountOut: %s", _amountOut);
             amountOut = _amountOut;
         } catch {
             emit UniswapReverted(tokenIn, tokenOut, amountIn, amountOutMin);

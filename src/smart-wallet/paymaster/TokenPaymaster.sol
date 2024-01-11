@@ -10,7 +10,7 @@ import "../interface/IEntrypoint.sol";
 import "../utils/BasePaymaster.sol";
 import "./utils/UniswapHelper.sol";
 import "./utils/OracleHelper.sol";
-
+import "hardhat/console.sol";
 /// @title Sample ERC-20 Token Paymaster for ERC-4337
 /// This Paymaster covers gas fees in exchange for ERC20 tokens charged using allowance pre-issued by ERC-4337 accounts.
 /// The contract refunds excess tokens if the actual gas cost is lower than the initially provided amount.
@@ -119,14 +119,19 @@ contract TokenPaymaster is BasePaymaster, UniswapHelper, OracleHelper {
     internal
     override
     returns (bytes memory context, uint256 validationResult) {unchecked {
+        console.log("TokenPaymaster: _validatePaymasterUserOp");
             uint256 priceMarkup = tokenPaymasterConfig.priceMarkup;
             uint256 paymasterAndDataLength = userOp.paymasterAndData.length - 20;
             require(paymasterAndDataLength == 0 || paymasterAndDataLength == 32,
                 "TPM: invalid data length"
             );
             uint256 preChargeNative = requiredPreFund + (tokenPaymasterConfig.refundPostopCost * userOp.maxFeePerGas);
+        console.log("TokenPaymaster: _validatePaymasterUserOp: preChargeNative", preChargeNative);
+            uint256 gasPrice = getGasPrice(userOp.maxFeePerGas, userOp.maxPriorityFeePerGas);
+        console.log("TokenPaymaster: _validatePaymasterUserOp: gasPrice", gasPrice);
         // note: as price is in ether-per-token and we want more tokens increasing it means dividing it by markup
             uint256 cachedPriceWithMarkup = cachedPrice * PRICE_DENOMINATOR / priceMarkup;
+        console.log("TokenPaymaster: _validatePaymasterUserOp: cachedPriceWithMarkup", cachedPriceWithMarkup);
             if (paymasterAndDataLength == 32) {
                 uint256 clientSuppliedPrice = uint256(bytes32(userOp.paymasterAndData[20 : 52]));
                 if (clientSuppliedPrice < cachedPriceWithMarkup) {
@@ -135,6 +140,7 @@ contract TokenPaymaster is BasePaymaster, UniswapHelper, OracleHelper {
                 }
             }
             uint256 tokenAmount = weiToToken(preChargeNative, cachedPriceWithMarkup);
+        console.log("TokenPaymaster: _validatePaymasterUserOp: tokenAmount", tokenAmount);
             SafeERC20.safeTransferFrom(token, userOp.sender, address(this), tokenAmount);
             context = abi.encode(tokenAmount, userOp.maxFeePerGas, userOp.maxPriorityFeePerGas, userOp.sender);
             validationResult = _packValidationData(
@@ -165,6 +171,7 @@ contract TokenPaymaster is BasePaymaster, UniswapHelper, OracleHelper {
         // Refund tokens based on actual gas cost
             uint256 actualChargeNative = actualGasCost + tokenPaymasterConfig.refundPostopCost * gasPrice;
             uint256 actualTokenNeeded = weiToToken(actualChargeNative, cachedPriceWithMarkup);
+        console.log("TokenPaymaster: _postOp: actualTokenNeeded", actualTokenNeeded);
             if (preCharge > actualTokenNeeded) {
                 // If the initially provided token amount is greater than the actual amount needed, refund the difference
                 SafeERC20.safeTransfer(
@@ -192,10 +199,14 @@ contract TokenPaymaster is BasePaymaster, UniswapHelper, OracleHelper {
     /// @param _cachedPrice the token price that will be used to calculate the swap amount.
     function refillEntryPointDeposit(uint256 _cachedPrice) private {
         uint256 currentEntryPointBalance = entryPoint.balanceOf(address(this));
+        console.log("TokenPaymaster: refillEntryPointDeposit: currentEntryPointBalance", currentEntryPointBalance);
+        console.log("TokenPaymaster: refillEntryPointDeposit: minEntryPointBalance", tokenPaymasterConfig.minEntryPointBalance);
         if (
             currentEntryPointBalance < tokenPaymasterConfig.minEntryPointBalance
         ) {
+            console.log("TokenPaymaster: refillEntryPointDeposit: swap & deposit");
             uint256 swappedWeth = _maybeSwapTokenToWeth(token, _cachedPrice);
+            console.log("TokenPaymaster: refillEntryPointDeposit: swappedWeth", swappedWeth);
             unwrapWeth(swappedWeth);
             entryPoint.depositTo{value: address(this).balance}(address(this));
         }

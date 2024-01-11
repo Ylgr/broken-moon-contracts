@@ -12,7 +12,6 @@ import {expect} from "chai";
 import {parseEther, Wallet} from "ethers";
 import BicAccountBuild from "../artifacts/src/smart-wallet/BicAccount.sol/BicAccount.json";
 import {OracleHelper, UniswapHelper} from "../typechain-types/src/smart-wallet/paymaster/TokenPaymaster";
-import {assert} from "matchstick-as/assembly/index";
 
 describe("smartWallet", () => {
     const {provider} = ethers;
@@ -598,6 +597,10 @@ describe("smartWallet", () => {
         await entryPoint.depositTo(paymasterAddress as any, { value: parseEther('0.1') } as any)
 
         expect(await paymaster.cachedPrice()).equal(ethers.parseUnits("2", 25)) //0.2 ETH per BM
+
+        await tokenToNativeOracle.setPrice(ethers.parseUnits("1", 1) as any)
+        await paymaster.updateCachedPrice(false as any)
+        expect(await paymaster.cachedPrice()).equal(ethers.parseUnits("1", 25)) //0.1 ETH per BM
 
     });
 });

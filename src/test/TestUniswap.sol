@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 
 import "./WrapEth.sol";
-
+import "hardhat/console.sol";
 /// @notice Very basic simulation of what Uniswap does with the swaps for the unit tests on the TokenPaymaster
 /// @dev Do not use to test any actual Uniswap interaction logic as this is way too simplistic
 contract TestUniswap {
@@ -32,17 +32,25 @@ contract TestUniswap {
 
     function exactInputSingle(ISwapRouter.ExactInputSingleParams calldata params) external returns (uint256) {
         uint256 amountOut = params.amountOutMinimum + 5;
+        console.log("amountOut", amountOut);
         emit StubUniswapExchangeEvent(
             params.amountIn,
             amountOut,
             params.tokenIn,
             params.tokenOut
         );
+        console.log("balance token in", IERC20(params.tokenIn).balanceOf(msg.sender));
+        console.log("balance token out", IERC20(params.tokenOut).balanceOf(address(this)));
+        console.log("allow token in", IERC20(params.tokenIn).allowance(msg.sender, address(this)));
+        console.log("msg.sender", msg.sender);
         IERC20(params.tokenIn).transferFrom(msg.sender, address(this), params.amountIn);
         IERC20(params.tokenOut).transfer(params.recipient, amountOut);
         return amountOut;
     }
-
+//1000000000000000000
+//1990000000107791474
+//10000000000541665700
+//10000000000541665700
     /// @notice Simplified code copied from here:
     /// https://github.com/Uniswap/v3-periphery/blob/main/contracts/base/PeripheryPayments.sol#L19
     function unwrapWETH9(uint256 amountMinimum, address recipient) public payable {

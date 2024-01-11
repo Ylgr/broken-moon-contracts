@@ -4,7 +4,7 @@ pragma solidity ^0.8.12;
 /* solhint-disable not-rely-on-time */
 
 import "../../interface/IOracle.sol";
-
+import "hardhat/console.sol";
 /// @title Helper functions for dealing with various forms of price feed oracles.
 /// @notice Maintains a price cache and updates the current price if needed.
 /// In the best case scenario we have a direct oracle from the token to the native asset.
@@ -82,8 +82,8 @@ abstract contract OracleHelper {
         uint256 priceUpdateThreshold = oracleHelperConfig.priceUpdateThreshold;
         IOracle tokenOracle = oracleHelperConfig.tokenOracle;
         IOracle nativeOracle = oracleHelperConfig.nativeOracle;
-
         uint256 _cachedPrice = cachedPrice;
+        console.log("cachedPrice: %s", _cachedPrice);
         uint256 tokenPrice = fetchPrice(tokenOracle);
         uint256 nativeAssetPrice = 1;
         // If the 'TokenOracle' returns the price in the native asset units there is no need to fetch native asset price
@@ -97,7 +97,9 @@ abstract contract OracleHelper {
             oracleHelperConfig.nativeOracleReverse
         );
         uint256 priceNewByOld = price * PRICE_DENOMINATOR / _cachedPrice;
-
+        console.log("priceNewB: %s", priceNewByOld);
+        console.log("change up: %s", PRICE_DENOMINATOR + priceUpdateThreshold);
+        console.log("change do: %s", PRICE_DENOMINATOR - priceUpdateThreshold);
         bool updateRequired = force ||
             priceNewByOld > PRICE_DENOMINATOR + priceUpdateThreshold ||
             priceNewByOld < PRICE_DENOMINATOR - priceUpdateThreshold;
