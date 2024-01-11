@@ -6,6 +6,7 @@ pragma solidity ^0.8.12;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "../utils/BasePaymaster.sol";
 import "../interface/IOracle.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 
 /**
  * A sample paymaster that defines itself as a token to pay for gas.
@@ -19,7 +20,7 @@ import "../interface/IOracle.sol";
  * - Possible workarounds are either use a more complex paymaster scheme (e.g. the DepositPaymaster) or
  *   to whitelist the account and the called method ids.
  */
-contract LegacyTokenPaymaster is BasePaymaster, ERC20 {
+contract LegacyTokenPaymaster is BasePaymaster, ERC20Votes {
 
     //calculated cost of the postOp
     uint256 constant public COST_OF_POST = 15000;
@@ -28,7 +29,7 @@ contract LegacyTokenPaymaster is BasePaymaster, ERC20 {
 
     address public oracle;
 
-    constructor(address accountFactory, string memory _symbol, IEntryPoint _entryPoint) ERC20(_symbol, _symbol) BasePaymaster(_entryPoint) {
+    constructor(address accountFactory, string memory _symbol, IEntryPoint _entryPoint) ERC20(_symbol, _symbol) BasePaymaster(_entryPoint) ERC20Permit("Beincom") {
         theFactory = accountFactory;
         //make it non-empty
         _mint(address(this), 1);
