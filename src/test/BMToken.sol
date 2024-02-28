@@ -11,6 +11,10 @@ contract BMToken is ERC20Burnable {
         _mint(to, amount);
     }
 
+    function mintTo(address to, uint256 amount) public {
+        _mint(to, amount);
+    }
+
     function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
         return super.transferFrom(sender, recipient, amount);
     }

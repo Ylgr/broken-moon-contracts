@@ -601,8 +601,8 @@ describe("smartWallet", () => {
         await tokenToNativeOracle.setPrice(ethers.parseUnits("1", 1) as any)
         await paymaster.updateCachedPrice(false as any)
         expect(await paymaster.cachedPrice()).equal(ethers.parseUnits("1", 25)) //0.1 ETH per BM
-
     });
+
 });
 // 0xaf3a4e3b3bfa7d75013b7526bec489b9832d2eb3061dcbd5467a4f3620d493185fe1809b7a7ff5a7d1b053e2a0bb4347fa284283e23621407ec64cc0c71a83681b
 // 0xf261dd9c7d3dcbabdc9b3b2c6a4991724dbc524f92adfe8e1ee76597d0e0f344649c5a089c6cb0bc80af740e87304eeffad59fd5114cde9cda2c9a5abd74e2cd1b

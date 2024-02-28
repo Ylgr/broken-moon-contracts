@@ -23,7 +23,8 @@ const config: HardhatUserConfig = {
         runs: 1000,
       },
     },
-  },  preprocess: {
+  },
+  preprocess: {
     eachLine: (hre) => ({
       transform: (line: string) => {
         if (line.match(/^\s*import /i)) {
@@ -44,9 +45,13 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {
+      forking: {
+        url: "https://eth-sepolia.g.alchemy.com/v2/" + process.env.ALCHEMY_API_KEY,
+      },
       allowUnlimitedContractSize: true,
-      gasPrice: 5000000000, // 5 gwei
-      initialBaseFeePerGas: 5000000000, // 5 gwei
+      // gasPrice: 5000000000, // 5 gwei
+      // initialBaseFeePerGas: 5000000000, // 5 gwei
+      maxFeePerGas: 500000000000, // 5 gwei
     },
     testnet: {
       url: "https://data-seed-prebsc-1-s1.binance.org:8545",
@@ -57,7 +62,7 @@ const config: HardhatUserConfig = {
       url: "https://bsc-dataseed.binance.org/",
       chainId: 56,
       accounts: [process.env.PRIVATE_KEY as string],
-    }
+    },
   },
   etherscan: {
     apiKey: process.env.API_KEY,
