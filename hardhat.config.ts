@@ -63,6 +63,11 @@ const config: HardhatUserConfig = {
       chainId: 56,
       accounts: [process.env.PRIVATE_KEY as string],
     },
+    sepolia: {
+      url: "https://eth-sepolia.g.alchemy.com/v2/" + process.env.ALCHEMY_API_KEY,
+      chainId: 11155111,
+      accounts: [process.env.PRIVATE_KEY as string],
+    },
   },
   etherscan: {
     apiKey: process.env.API_KEY,
