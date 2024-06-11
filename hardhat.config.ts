@@ -68,10 +68,29 @@ const config: HardhatUserConfig = {
       chainId: 11155111,
       accounts: [process.env.PRIVATE_KEY as string],
     },
+
+    arbitrumSepolia: {
+      url: "https://sepolia-rollup.arbitrum.io/rpc",
+      chainId: 421614,
+      accounts: [process.env.PRIVATE_KEY as string],
+    }
   },
   etherscan: {
-    apiKey: process.env.API_KEY,
+    apiKey: {
+      arbitrumSepolia: process.env.API_KEY,
+    },
+    sepolia: process.env.API_KEY,
     bscTestnet: process.env.API_KEY,
+    customChains: [
+      {
+        network: "arbitrumSepolia",
+        chainId: 421614,
+        urls: {
+          apiURL: "https://api-sepolia.arbiscan.io/api",
+          browserURL: "https://sepolia.arbiscan.io/",
+        },
+      },
+    ],
   },
 };
 
